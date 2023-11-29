@@ -59,6 +59,13 @@ class BackboneSocialSystem:
     @property
     def nr_agents(self):
         return self.graph.number_of_nodes()
+    
+    def polarization_degree(self):
+        return np.abs(self.opinions).mean()
+    
+    # TODO IMPLEMENT
+    # Implement the generalized clusters metric.
+    # See: https://jasss.soc.surrey.ac.uk/9/3/8.html  3.4, 3.5 & 3.6
 
         
     def step(self):
