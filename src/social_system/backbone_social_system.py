@@ -8,7 +8,6 @@ import networkx as nx
 
 # Import package constants
 from . import opinion_value_lb, opinion_value_ub
-from . import link_strength_lb_init, link_strength_ub_init
 from . import interaction_intensity
 from . import opinion_tolerance
 
@@ -21,6 +20,7 @@ class BackboneSocialSystem:
     # Something utilizing the Poission distribution sounds logical...
     def __init__(self,
                 nr_agents: int,
+                pr_edge_creation: float,
                 interaction_intensity: float = interaction_intensity,
                 opinion_tolerance: float = opinion_tolerance,
                 **kwargs
@@ -32,9 +32,9 @@ class BackboneSocialSystem:
         # call requires a random generator.
         self._rng = np.random.default_rng()
         
-        # TODO: Insert a parameter which controls the expected number of
-        # edges per agent (now it is hard-coded to `3`). 
-        self.graph = self._weighted_erdos_renyi_graph_generator(nr_agents, 3/nr_agents)
+        # `**kwargs` are inserted in case the function is overriden by a different class
+        # and requires more arguments (contravariant parameters).
+        self.graph = self._weighted_erdos_renyi_graph_generator(nr_agents, pr_edge_creation, **kwargs)
 
         # TODO IMPLEMENT:
         # Write an opinions initialization scheme.
@@ -221,7 +221,8 @@ class BackboneSocialSystem:
     def _weighted_erdos_renyi_graph_generator(
         nr_vertices: int,
         pr_edge_creation: float,
-        is_dense: bool = False
+        is_dense: bool = False,
+        **kwargs
     ) -> nx.DiGraph:
         
         # Dynamic sanity checks.

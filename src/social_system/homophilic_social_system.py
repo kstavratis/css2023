@@ -12,10 +12,7 @@ from typing import Tuple
 from .backbone_social_system import BackboneSocialSystem
 
 # Import CONSTANT(S)
-from . import opinion_value_lb, opinion_value_ub
 from . import link_strength_lb_init, link_strength_ub_init
-from . import interaction_intensity
-from . import opinion_tolerance
 from . import pr_friend, pr_friend_of_friend, pr_random_agent
 
 class HomophilicSocialSystem(BackboneSocialSystem):
@@ -41,12 +38,12 @@ class HomophilicSocialSystem(BackboneSocialSystem):
         # which should be ignored (I will not match with myself).
         cycle_pairs_generator = nx.simple_cycles(self.graph, 2)
 
+        # cycles_with_dict[nodeI] -> list[nodesJ]
+        # `nodeI` forms a cycle with all nodes `nodesJ`.
         cycles_with_dict = defaultdict(list)
         for i, j in cycle_pairs_generator:
-            cycles_with_dict.append(j)
-            cycles_with_dict.append(i)
-            # cycles_with_dict.setdefault(i, []).append(j)
-            # cycles_with_dict.setdefault(j, []).append(i)
+            cycles_with_dict[i].append(j)
+            cycles_with_dict[j].append(i)
 
         for source in self.graph.nodes():
 
@@ -100,7 +97,7 @@ class HomophilicSocialSystem(BackboneSocialSystem):
                         positive_edges.append(link_strength)
 
                 # "ls" = "link strength"
-                candidates_ls = np.zeros(self._nr_agents) # Initialization
+                candidates_ls = np.zeros(self.nr_agents) # Initialization
                 candidates_ls[np.array(positive_friends)] = np.array(positive_edges)
 
                 candidates_pr = np.zeros_like(candidates_ls) # Initialization
@@ -132,11 +129,12 @@ class HomophilicSocialSystem(BackboneSocialSystem):
                 # other agents (either positive or negative),
                 # but not of the opinions of "enemies"
                 # This is the reason why `friends_csr` was computed.
-                candidates_scores = (friends_csr @ graph_array).getrow(source).todense()
+                candidates_scores = (friends_csr @ graph_array)[[list(source_subgraph.nodes).index(source)], :].todense().flatten()
                 # Retain only the positive scores,
                 # i.e. consider only the overall good friend recommendations. 
                 candidates_scores = np.maximum(candidates_scores, 0)
 
+                # Variable initialization
                 candidates_pr = np.zeros_like(candidates_scores)
                 # TODO DECIDE:
                 # What normalization scheme should be used?
@@ -145,42 +143,32 @@ class HomophilicSocialSystem(BackboneSocialSystem):
                 # as much sense for me).
                 normalize_factor = candidates_scores.sum()
                 if normalize_factor > 0: # Normalize
-                    candidates_pr /= normalize_factor
+                    candidates_pr = candidates_scores / normalize_factor
                 
 
             elif match_scheme == 2: # Choose random agent in the graph
 
                 # NOTE: Friend of a friend may also be selected, which is consistent.
-                random_agents = np.array(nx.non_neighbors(self.graph, source))
-                candidates_pr = np.zeros(self._nr_agents)
+                random_agents = np.array(list(nx.non_neighbors(self.graph, source)))
+                candidates_pr = np.zeros(self.nr_agents)
                 candidates_pr[random_agents] = 1 # Uniform distribution
                 normalize_factor = candidates_pr.sum() # Unless it's a small graph, very likely that this will be greater than zero.
                 if normalize_factor > 0: # Normalize 
                     candidates_pr /= normalize_factor
 
-
-                # # Friend of a friend case
-                # immediate_friends_adjacency = np.maximum(self.adjacency_matrix , 0)
-                # neighbour_of_neighbour_adjacency = immediate_friends_adjacency @ self.adjacency_matrix
-                # # NOTE: Have the sparse matrices be of CSR format for fast numerical computations.
-
-                # # Avoid all agents of the previous cases
-                # # (i.e. "friend" and "friend of a friend")
-                # potential_agents_mask = ~((self.adjacency_matrix > 0) |\
-                #                         (neighbour_of_neighbour_adjacency > 0))
-                
-                # # Choice of random agents follows a uniform distribution.
-                # normalize_factors = potential_agents_mask.sum(1)[:, np.newaxis]
-                # potential_agents_mask = potential_agents_mask.astype(int, copy=False) # Normalization  of bool doesn't make sense.
-                # candidates_pr = potential_agents_mask / normalize_factors
-
             
-            agent_choice = self._rng.choice(self._nr_agents, sample_size, p=candidates_pr)
+            agent_choice = self._rng.choice(self.nr_agents, sample_size, p=candidates_pr)
             output.append(agent_choice)
 
         return np.vstack(output)
     
 
+    # TODO FIX
+    # This function seems to not work correctly,
+    # as the "friend of friend" scenario can be executed
+    # in the `_match` function.
+    # I can get:
+    # "ValueError: probabilities do not sum to 1" in the `agent_choice = self._rng(..., p=candidates_pr)`.
     @staticmethod
     def __adjust_matching_pdfs(
         graph: nx.DiGraph,
@@ -190,7 +178,7 @@ class HomophilicSocialSystem(BackboneSocialSystem):
         pr_random_agent: float = pr_random_agent
     ) -> Tuple[float, float, float]:
         
-        # Consider three cases.
+        # Consider four (4) cases.
 
         # CASE 1: There is no outgoing edge with positive link strength.
         # Make the probability for choosing a random person 100% (and all else 0).
@@ -219,7 +207,7 @@ class HomophilicSocialSystem(BackboneSocialSystem):
 
         friends_array: csr_array = graph_array.maximum(0)
         #friend_array.eliminate_zeros() # We have to see if this takes more time than needed.
-        friend_suggestions = (friends_array @ graph_array).getrow(source)
+        friend_suggestions = (friends_array @ graph_array)[[list(graph.nodes).index(source)], :]
         exists_friend_suggestion = friend_suggestions.maximum(0).count_nonzero() > 0
 
         # TODO DECIDE:
@@ -233,7 +221,16 @@ class HomophilicSocialSystem(BackboneSocialSystem):
             return pr_friend + pr_friend_of_friend, 0, pr_random_agent
 
 
-        # CASE 3: None of the two above cases.
+        # CASE 3: The agent is fully networked.
+        # The agent may be connected with all other agents
+        # of the network with a direct link.
+        # In this case, the "random_agent" option should be disallowed.
+        if next(nx.non_neighbors(graph, source), None) is None:
+            return pr_friend + pr_random_agent/2 , pr_friend_of_friend + pr_random_agent/2, 0
+
+
+
+        # CASE 4: None of the above cases.
         # Proceed with the provided probabilities.
         return pr_friend, pr_friend_of_friend, pr_random_agent
     
@@ -243,10 +240,11 @@ class HomophilicSocialSystem(BackboneSocialSystem):
         nr_vertices: int,
         pr_edge_creation: float,
         pr_positive: float,
-        is_dense: bool = False
+        is_dense: bool = False,
+        **kwargs
     ) -> nx.DiGraph:
         
-        output_graph = super()._weighted_erdos_renyi_graph_generator(nr_vertices, pr_edge_creation, is_dense)
+        output_graph = BackboneSocialSystem._weighted_erdos_renyi_graph_generator(nr_vertices, pr_edge_creation, is_dense)
 
         assert 0 <= pr_positive <= 1,\
             f'`pr_positive` expresses a probability.\
