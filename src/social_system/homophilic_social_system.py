@@ -118,7 +118,10 @@ class HomophilicSocialSystem(BackboneSocialSystem):
 
                 friends_csr: csr_array = graph_array.maximum(0)
                 #friend_array.eliminate_zeros() # We have to see if this takes more time than needed.
-
+                
+                # Declare and initialize variable.
+                candidates_scores = np.zeros(self.nr_agents)
+                candidate_ids = list(source_subgraph.nodes)
                 # NOTE: Problematic behaviour of pure matrix multiplication.
                 # The pure matrix multiplication presupposes that the agents are
                 # aware of the link strengths of agents that are connected
@@ -129,7 +132,7 @@ class HomophilicSocialSystem(BackboneSocialSystem):
                 # other agents (either positive or negative),
                 # but not of the opinions of "enemies"
                 # This is the reason why `friends_csr` was computed.
-                candidates_scores = (friends_csr @ graph_array)[[list(source_subgraph.nodes).index(source)], :].todense().flatten()
+                candidates_scores[candidate_ids] = (friends_csr @ graph_array)[[candidate_ids.index(source)], :].todense().flatten()
                 # Retain only the positive scores,
                 # i.e. consider only the overall good friend recommendations. 
                 candidates_scores = np.maximum(candidates_scores, 0)

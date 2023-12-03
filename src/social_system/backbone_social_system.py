@@ -48,8 +48,10 @@ class BackboneSocialSystem:
         # TODO IMPLEMENT: Decide on a tolerance initialization scheme.
         # Basic solution: have initial opinion tolerance
         # be the same in all agents of the system.
+        # θ, C
         self.tolerances = opinion_tolerance * np.ones_like(self.opinions)
         
+        # μ
         self.interaction_intensity = interaction_intensity
 
         # Define initially empty helper variables
