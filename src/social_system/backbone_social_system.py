@@ -15,34 +15,40 @@ from .utils.kernel_functions import kernel_functions_dict
 
 class BackboneSocialSystem:
 
+    # Convenient to create a random generator once.
+    # It could be created once, every time a function
+    # call requires a random generator.
+    _rng = np.random.default_rng()
+
     # TODO IMPLEMENT:
     # WRITE A LINK STRENGTH INITIALIZATION SCHEME!!!
     # Something utilizing the Poission distribution sounds logical...
     def __init__(self,
-                nr_agents: int,
-                pr_edge_creation: float,
+                graph: nx.Graph or int,
+                pr_edge_creation: float = None,
                 interaction_intensity: float = interaction_intensity,
                 opinion_tolerance: float = opinion_tolerance,
                 **kwargs
                 ):
-
-
-        # Convenient to create a random generator once.
-        # It could be created once, every time a function
-        # call requires a random generator.
-        self._rng = np.random.default_rng()
         
         # `**kwargs` are inserted in case the function is overriden by a different class
         # and requires more arguments (contravariant parameters).
-        self.graph = self._weighted_erdos_renyi_graph_generator(nr_agents, pr_edge_creation, **kwargs)
 
+        if isinstance(graph, nx.Graph):
+            self.graph = graph
+        elif isinstance(graph, int):
+            self.graph = self.weighted_erdos_renyi_graph_generator(graph, pr_edge_creation, **kwargs)
+        else:
+            raise TypeError(f'Argument `graph` was expected to be of type {nx.Graph} or {int}.\n'
+                      f'{type(graph)} was provided instead.')
+        
         # TODO IMPLEMENT:
         # Write an opinions initialization scheme.
         # Currently, opinions are generated uniformly.
 
         # unif[a, b) = (b-a) * unif[0,1) + a
         self.opinions = (opinion_value_ub - opinion_value_lb)\
-            * self._rng.uniform(size=(nr_agents))\
+            * BackboneSocialSystem._rng.uniform(size=self.nr_agents)\
                 + opinion_value_lb
         
         # TODO IMPLEMENT: Decide on a tolerance initialization scheme.
@@ -68,6 +74,7 @@ class BackboneSocialSystem:
     # TODO IMPLEMENT
     # Implement the generalized clusters metric.
     # See: https://jasss.soc.surrey.ac.uk/9/3/8.html  3.4, 3.5 & 3.6
+    # Search for different metrics or come up with our own metrics.
 
         
     def step(self):
@@ -112,7 +119,7 @@ class BackboneSocialSystem:
             # Uniformly pick one of the neighbours.
             neighbours = list(source_subgraph.successors(source))
             if neighbours:
-                agent_choice = self._rng.choice(neighbours, sample_size, replace=False)
+                agent_choice = BackboneSocialSystem._rng.choice(neighbours, sample_size, replace=False)
 
             output.append(agent_choice)
 
@@ -190,7 +197,6 @@ class BackboneSocialSystem:
 
         self.opinions += self.interaction_intensity * changes_of_opinion 
 
-    
     def _change_tolerances(self, kernel_values):
 
         # NOTE: This is but one possible generation scheme.
@@ -219,8 +225,9 @@ class BackboneSocialSystem:
 
         self.tolerances += changes_of_tolerance
 
+
     @staticmethod
-    def _weighted_erdos_renyi_graph_generator(
+    def weighted_erdos_renyi_graph_generator(
         nr_vertices: int,
         pr_edge_creation: float,
         is_dense: bool = False,
@@ -245,7 +252,6 @@ class BackboneSocialSystem:
             output_graph = nx.gnp_random_graph(nr_vertices, pr_edge_creation, directed=True)
         else:
             output_graph: nx.DiGraph = nx.fast_gnp_random_graph(nr_vertices, pr_edge_creation, directed=True)
-    
 
         return output_graph
     

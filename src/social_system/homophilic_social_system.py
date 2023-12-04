@@ -239,7 +239,7 @@ class HomophilicSocialSystem(BackboneSocialSystem):
     
 
     @staticmethod
-    def _weighted_erdos_renyi_graph_generator(
+    def weighted_erdos_renyi_graph_generator(
         nr_vertices: int,
         pr_edge_creation: float,
         pr_positive: float,
@@ -247,7 +247,7 @@ class HomophilicSocialSystem(BackboneSocialSystem):
         **kwargs
     ) -> nx.DiGraph:
         
-        output_graph = BackboneSocialSystem._weighted_erdos_renyi_graph_generator(nr_vertices, pr_edge_creation, is_dense)
+        output_graph = BackboneSocialSystem.weighted_erdos_renyi_graph_generator(nr_vertices, pr_edge_creation, is_dense)
 
         assert 0 <= pr_positive <= 1,\
             f'`pr_positive` expresses a probability.\
@@ -259,17 +259,20 @@ class HomophilicSocialSystem(BackboneSocialSystem):
 
         successors = output_graph.succ
 
-        rng = np.random.default_rng()
+        rng: np.random.Generator = np.random.default_rng()
+        rand_weights = rng.integers(link_strength_lb_init, link_strength_ub_init, len(output_graph.edges), endpoint=True)
 
-        for source, destinations in successors.items():
+        output_graph.add_weighted_edges_from(list((*edge, rand_weights[i]) for i, edge in enumerate(output_graph.edges)))
 
-            nr_neighbours = len(destinations)
-            s_ones = source * np.ones(nr_neighbours) # Abusing the fact that nodes have integer IDs.
-            d_arr = np.array(destinations)
-            # Uniformly distributed.
-            rand_weights = rng.integers(link_strength_lb_init, link_strength_ub_init, nr_neighbours, endpoint=True)
-            links = np.vstack([s_ones, d_arr, rand_weights]).T # Make triplets.
-            output_graph.add_weighted_edges_from(links)
+        # for source, destinations in successors.items():
+
+        #     nr_neighbours = len(destinations)
+        #     s_ones = source * np.ones(nr_neighbours) # Abusing the fact that nodes have integer IDs.
+        #     d_arr = np.array(destinations)
+        #     # Uniformly distributed.
+        #     rand_weights = rng.integers(link_strength_lb_init, link_strength_ub_init, nr_neighbours, endpoint=True)
+        #     links = np.vstack([s_ones, d_arr, rand_weights]).T # Make triplets.
+        #     output_graph.add_weighted_edges_from(links)
 
             
         return output_graph
