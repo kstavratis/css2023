@@ -22,7 +22,6 @@ class HomophilicSocialSystem(BackboneSocialSystem):
             sample_size: int = 1,
             pr_friend: float = pr_friend,
             pr_friend_of_friend: float = pr_friend_of_friend,
-            pr_random_agent: float = pr_random_agent
     ) -> npt.NDArray[np.bool_]:
         
         output = []
@@ -69,7 +68,7 @@ class HomophilicSocialSystem(BackboneSocialSystem):
                     source,
                     pr_friend,
                     pr_friend_of_friend,
-                    pr_random_agent
+                    1 - (pr_friend + pr_friend_of_friend)
                 )
 
             # PDF generation scheme is hard-coded to be

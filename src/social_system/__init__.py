@@ -28,7 +28,7 @@ EPSILON = 1e-8
 
 pr_friend = 0.9
 pr_friend_of_friend = 0.09
-pr_random_agent = 0.01
+pr_random_agent = 1 -  (pr_friend + pr_friend_of_friend)
 assert pr_friend + pr_friend_of_friend + pr_random_agent == 1,\
 'The three probabilities must add up to one, as they represent\
     a probability distribution function (PDF).'
