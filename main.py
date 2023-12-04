@@ -1,35 +1,64 @@
+from concurrent.futures.process import ProcessPoolExecutor
+
 from tqdm import tqdm
 
-from src.social_system.backbone_social_system import BackboneSocialSystem
-from src.social_system.homophilic_social_system import HomophilicSocialSystem
-from src.social_system.mixins.social_system_with_extremists import SocialSystemWithExtremists
+from src.social_system.utils.experiments import run_comparison_experiment
 
-nr_agents = 100
-expected_edges_per_agent = 2
 
-arguments = {
-    'nr_agents' : nr_agents,
-    'pr_edge_creation' : expected_edges_per_agent/nr_agents, # The idea is for the probability to be `1/nr_agents`.
-    'pr_positive': 0.0, # In the current implementation, this parameter is ignored.
-    'positive_extremists_indices' : [0],
-    'negative_extremists_indices' : [3]
-}
-
-class RunClass(HomophilicSocialSystem):
-
-    def __init__(self, **kwargs) -> None:
-        super().__init__(**kwargs)
 
 def main():
-    
-    test = RunClass(**arguments)
-    print(f'Initial opinions:\n{test.opinions}')
-    print(f'Initial tolerances:\n{test.tolerances}') 
-    for _ in tqdm(range(1000)):
-        test.step()
 
-    print(f'Final opinions:\n{test.opinions}')
-    print(f'Final tolerances:\n{test.tolerances}')
+    # Arguments declaration and initialization
+    nr_experiments = 5
+    nr_agents = 100
+    time_steps = 1#_000
+
+    kwargs_list = []
+
+    # μ = θ = 0.5 := "Centrality"
+    # μ = θ = 0.25 := "Debility"
+    # μ = 0.25, θ = 0.5 := "Tolerability"
+    # μ = 0.5, θ = 0.25 := "Susceptibility"
+    for mu, theta in ((0.5, 0.5), (0.25, 0.25), (0.25, 0.5), (0.5, 0.25)):
+        for expected_edges_per_agent in (7, 11, 20):
+            for pr_friend, pr_friend_of_friend in ((0.8, 0.1), (0.9, 0.09), (0.95, 0.04)):
+                kwargs = {
+                    'time_steps': time_steps,
+
+                    'graph' : nr_agents,
+                    'interaction_intensity': mu,
+                    'opinion_tolerance': theta,
+
+                    'pr_edge_creation': expected_edges_per_agent / nr_agents,
+                    'pr_positive': 0.0, # In the current implementation, this parameter is ignored.
+                    'pr_friend': pr_friend,
+                    'pr_friend_of_friend': pr_friend_of_friend
+                }
+                kwargs_list.append(kwargs)
+
+
+
+    # Single threaded run.
+    # for kwargs in kwargs_list:
+    #     print(run_comparison_experiment(kwargs))
+
+
+    # Although multiple different experiments are run in parallel,
+    # the results are not aggregated/collected/stored somewhere
+    # where they might be utilized for analysis.
+    # TODO IMPLEMENT
+    # Data collection/storage.
+    executor = ProcessPoolExecutor()
+    # Note: callist "list" enforces the evaluation of the map
+    # (a.k.a all experiment are conducted before moving to the next code instruction).
+    test = list(tqdm(
+        executor.map(run_comparison_experiment, kwargs_list),
+        total=4*3*3)
+    )
+
+    for item in test:
+        print(item)
+    
 
 if __name__ == '__main__':
     main()
