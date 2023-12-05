@@ -1,18 +1,19 @@
+from copy import deepcopy
+
 import numpy as np
 import pandas as pd
 
 from src.social_system.backbone_social_system import BackboneSocialSystem
 from src.social_system.homophilic_social_system import HomophilicSocialSystem
 
-from .graph_helper_functions import get_subgraph_with_edges_in_range
+from ..social_system.utils.graph_helper_functions import get_subgraph_with_edges_in_range
 
-def run_comparison_experiment(kwargs: dict):
-    time_steps = kwargs['time_steps']
+def run_comparison_experiments(nr_experiments: int, time_steps: int, system_kwargs: dict):
 
     # Two social systems creations START
-    homophilic_system = HomophilicSocialSystem(**kwargs)
+    homophilic_system = HomophilicSocialSystem(**system_kwargs)
     
-    baseline_system = BackboneSocialSystem(**kwargs)
+    baseline_system = BackboneSocialSystem(**system_kwargs)
     # Overwrite info.of one graph to the other.
     # We do this, because we wish for both social systems to have identical initial configurations.
     # Admittedly, this is a very ugly way to do it.
@@ -24,10 +25,15 @@ def run_comparison_experiment(kwargs: dict):
     baseline_system.interaction_intensity = homophilic_system.interaction_intensity
     # Two social systems creations FINISH
 
-    base_exp_df = run_experiment(baseline_system, time_steps)
-    homophilic_exp_df = run_experiment(homophilic_system, time_steps)
+    output = []
+    # Run different experiments with identical parameterizations.
+    # Differences will be a consequence of randomness!
+    for _ in range(nr_experiments):
+        base_exp_df = run_experiment(deepcopy(baseline_system), time_steps)
+        homophilic_exp_df = run_experiment(deepcopy(homophilic_system), time_steps)
+        output.append((base_exp_df, homophilic_exp_df))
 
-    return base_exp_df, homophilic_exp_df
+    return output
 
     
 
@@ -48,7 +54,6 @@ def run_experiment(social_system: BackboneSocialSystem, time_steps: int) -> pd.D
     opinions_array = np.stack(opinions_list, 0).reshape(time_steps+1, social_system.nr_agents)
     polarization_degrees_array = np.array(polarization_degrees_list)
 
-    # print(opinions_array)
     # The dataframe is of the format:
     # rows: 0...time_steps-1
     # columns:
