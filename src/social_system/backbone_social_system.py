@@ -15,11 +15,6 @@ from .utils.kernel_functions import kernel_functions_dict
 
 class BackboneSocialSystem:
 
-    # Convenient to create a random generator once.
-    # It could be created once, every time a function
-    # call requires a random generator.
-    _rng = np.random.default_rng()
-
     # TODO IMPLEMENT:
     # WRITE A LINK STRENGTH INITIALIZATION SCHEME!!!
     # Something utilizing the Poission distribution sounds logical...
@@ -46,9 +41,11 @@ class BackboneSocialSystem:
         # Write an opinions initialization scheme.
         # Currently, opinions are generated uniformly.
 
+        rng = np.random.default_rng()
+
         # unif[a, b) = (b-a) * unif[0,1) + a
         self.opinions = (opinion_value_ub - opinion_value_lb)\
-            * BackboneSocialSystem._rng.uniform(size=self.nr_agents)\
+            * rng.uniform(size=self.nr_agents)\
                 + opinion_value_lb
         
         # TODO IMPLEMENT: Decide on a tolerance initialization scheme.
@@ -103,6 +100,7 @@ class BackboneSocialSystem:
         # Random neighbours are chosen uniformly be each agent.
         
         output = []
+        rng = np.random.default_rng()
 
         for source in self.graph.nodes():
 
@@ -119,7 +117,7 @@ class BackboneSocialSystem:
             # Uniformly pick one of the neighbours.
             neighbours = list(source_subgraph.successors(source))
             if neighbours:
-                agent_choice = BackboneSocialSystem._rng.choice(neighbours, sample_size, replace=False)
+                agent_choice = rng.choice(neighbours, sample_size, replace=False)
 
             output.append(agent_choice)
 

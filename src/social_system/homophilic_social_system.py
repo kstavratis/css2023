@@ -25,6 +25,7 @@ class HomophilicSocialSystem(BackboneSocialSystem):
     ) -> npt.NDArray[np.bool_]:
         
         output = []
+        rng = np.random.default_rng()
 
         # TODO IMPLEMENT:
         # Create a function which can be dynamically dictates
@@ -76,7 +77,7 @@ class HomophilicSocialSystem(BackboneSocialSystem):
             # 0. choose an immediate friend
             # 1. choose the friend of a friend
             # 2. choose a random agent of the graph
-            match_scheme = self._rng.choice(3, 1, p=[pr_friend, pr_friend_of_friend, pr_random_agent]).item()
+            match_scheme = rng.choice(3, 1, p=[pr_friend, pr_friend_of_friend, pr_random_agent]).item()
             
             candidates_pr = None # Variable declaration
 
@@ -159,7 +160,7 @@ class HomophilicSocialSystem(BackboneSocialSystem):
                     candidates_pr /= normalize_factor
 
             
-            agent_choice = self._rng.choice(self.nr_agents, sample_size, p=candidates_pr)
+            agent_choice = rng.choice(self.nr_agents, sample_size, p=candidates_pr)
             output.append(agent_choice)
 
         return np.vstack(output)
@@ -170,7 +171,7 @@ class HomophilicSocialSystem(BackboneSocialSystem):
     # as the "friend of friend" scenario can be executed
     # in the `_match` function.
     # I can get:
-    # "ValueError: probabilities do not sum to 1" in the `agent_choice = self._rng(..., p=candidates_pr)`.
+    # "ValueError: probabilities do not sum to 1" in the `agent_choice = rng(..., p=candidates_pr)`.
     @staticmethod
     def __adjust_matching_pdfs(
         graph: nx.DiGraph,
