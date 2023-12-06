@@ -8,6 +8,8 @@ from collections import defaultdict
 
 from typing import Tuple
 
+from .utils.graph_helper_functions import increase_weights_of_edges
+
 # Import SUPERCLASS(ES)
 from .backbone_social_system import BackboneSocialSystem
 
@@ -190,12 +192,19 @@ class HomophilicSocialSystem(BackboneSocialSystem):
         # associated with the kernel function used.
         threshold = 0
 
-        link_incrdecrements = \
-            self.__compute_link_strength_incrdecrements(self.opinions, previous_opinions, matchings)
+        link_incredecrements = \
+            self.__compute_link_strength_incredecrements(self.opinions, previous_opinions, matchings)
+        
+        increase_weights_of_edges(self.graph, link_incredecrements)
 
 
     @staticmethod
-    def __compute_link_strength_incrdecrements(current_opinions, previous_opinions, matchings, threshold: float = 0):
+    def __compute_link_strength_incredecrements(
+        current_opinions,
+        previous_opinions,
+        matchings,
+        threshold: float = 0
+    ) -> npt.NDArray[np.int_]:
 
         was_impacted = np.absolute(current_opinions - previous_opinions) > threshold
 

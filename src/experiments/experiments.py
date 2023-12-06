@@ -6,7 +6,7 @@ import pandas as pd
 from src.social_system.backbone_social_system import BackboneSocialSystem
 from src.social_system.homophilic_social_system import HomophilicSocialSystem
 
-from ..social_system.utils.graph_helper_functions import get_subgraph_with_edges_in_range
+from ..social_system.utils.graph_helper_functions import reduce_to_graph_with_edges_in_range
 
 def run_comparison_experiments(nr_experiments: int, time_steps: int, system_kwargs: dict):
 
@@ -19,7 +19,8 @@ def run_comparison_experiments(nr_experiments: int, time_steps: int, system_kwar
     # Admittedly, this is a very ugly way to do it.
     # TODO IMPLEMENT
     # Implement a "copying" function, where the important info from one system is transferrred to the other.
-    baseline_system.graph = get_subgraph_with_edges_in_range(homophilic_system.graph, 0)
+    baseline_graph = deepcopy(homophilic_system.graph); reduce_to_graph_with_edges_in_range(baseline_graph, 0)
+    baseline_system.graph = baseline_graph
     baseline_system.opinions = homophilic_system.opinions.copy()
     baseline_system.tolerances = homophilic_system.tolerances.copy()
     baseline_system.interaction_intensity = homophilic_system.interaction_intensity
