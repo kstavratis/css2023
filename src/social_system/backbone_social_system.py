@@ -127,7 +127,7 @@ class BackboneSocialSystem:
 
     def _interact(self, matchings: npt.NDArray[np.bool_], kf_name: str = 'bc') -> None :
         # Dynamic sanity check(s)
-        matchings.ndim == 2
+        assert matchings.ndim == 2
 
         # NOTE: If we wish for the code to be more general,
         # the kernel computation should be done inside the
@@ -156,6 +156,8 @@ class BackboneSocialSystem:
 
         self._change_opinions(kf_result)
         self._change_tolerances(kf_result)
+
+        return kf_result
 
 
     def _postprocess(self):

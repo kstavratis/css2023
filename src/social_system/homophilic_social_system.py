@@ -159,19 +159,68 @@ class HomophilicSocialSystem(BackboneSocialSystem):
                 if normalize_factor > 0: # Normalize 
                     candidates_pr /= normalize_factor
 
-            
-            agent_choice = rng.choice(self.nr_agents, sample_size, p=candidates_pr)
+            # TODO FIX
+            # This command can break in case where there are not enough
+            # options fo the agents to choose from
+            # when `sample_size` is too large
+            # (for very sparse graphs, that can also happen for `sample_size=2`)
+            # One solution would be to call the matching scheme one pairing at a time
+            # i.e. do one matching `sample_size` times, excluding the agents
+            # chosen in the previous round.
+            # This is too expensive to do for the current simulation.
+            # Moreover currently we are focusing on `sample_size=1`.
+            agent_choice = rng.choice(self.nr_agents, sample_size, replace=False, p=candidates_pr)
             output.append(agent_choice)
 
         return np.vstack(output)
     
+    def _interact(self, matchings: npt.NDArray[np.bool_], kf_name: str = 'bc'):
 
-    # TODO FIX
-    # This function seems to not work correctly,
-    # as the "friend of friend" scenario can be executed
-    # in the `_match` function.
-    # I can get:
-    # "ValueError: probabilities do not sum to 1" in the `agent_choice = rng(..., p=candidates_pr)`.
+        previous_opinions = self.opinions.copy()
+        # Have the agents interact as they would
+        # (currently they change their opinion and tolerances).
+        super()._interact(matchings, kf_name)
+
+        # TODO FIX
+        # The following code segment is very un-Pythonic.
+        # Find a way to make it more readable.
+
+        # TODO IMPLEMENT
+        # The `threshold` must be either an input/parameter or
+        # associated with the kernel function used.
+        threshold = 0
+
+        link_incrdecrements = \
+            self.__compute_link_strength_incrdecrements(self.opinions, previous_opinions, matchings)
+
+
+    @staticmethod
+    def __compute_link_strength_incrdecrements(current_opinions, previous_opinions, matchings, threshold: float = 0):
+
+        was_impacted = np.absolute(current_opinions - previous_opinions) > threshold
+
+        was_impacted_indices = np.where(was_impacted)[0]
+        increment_links = np.vstack((
+            np.repeat(was_impacted_indices, matchings.shape[1]),
+            matchings[was_impacted_indices].ravel(),
+            np.ones(was_impacted_indices.size * matchings.shape[1])
+        )).T.astype(np.int_)
+
+
+
+        not_impacted = ~was_impacted
+
+        not_impacted_indices = np.where(not_impacted)[0]
+        decrement_links = np.vstack((
+            np.repeat(not_impacted_indices, matchings.shape[1]),
+            matchings[not_impacted_indices].ravel(),
+            -np.ones(not_impacted_indices.size * matchings.shape[1])
+        )).T.astype(np.int_)
+
+        return np.vstack((increment_links, decrement_links))
+
+
+    
     @staticmethod
     def __adjust_matching_pdfs(
         graph: nx.DiGraph,
@@ -257,22 +306,10 @@ class HomophilicSocialSystem(BackboneSocialSystem):
         # Think up of a link strength initialization scheme.
         # AD-HOC uniformly create link strengths.
 
-        successors = output_graph.succ
-
         rng: np.random.Generator = np.random.default_rng()
+        # Uniformly distributed link strengths.
         rand_weights = rng.integers(link_strength_lb_init, link_strength_ub_init, len(output_graph.edges), endpoint=True)
 
         output_graph.add_weighted_edges_from(list((*edge, rand_weights[i]) for i, edge in enumerate(output_graph.edges)))
-
-        # for source, destinations in successors.items():
-
-        #     nr_neighbours = len(destinations)
-        #     s_ones = source * np.ones(nr_neighbours) # Abusing the fact that nodes have integer IDs.
-        #     d_arr = np.array(destinations)
-        #     # Uniformly distributed.
-        #     rand_weights = rng.integers(link_strength_lb_init, link_strength_ub_init, nr_neighbours, endpoint=True)
-        #     links = np.vstack([s_ones, d_arr, rand_weights]).T # Make triplets.
-        #     output_graph.add_weighted_edges_from(links)
-
             
         return output_graph
