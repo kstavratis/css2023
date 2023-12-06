@@ -148,9 +148,18 @@ class HomophilicSocialSystem(BackboneSocialSystem):
             elif match_scheme == 2: # Choose random agent in the graph
 
                 # NOTE: Friend of a friend may also be selected, which is consistent.
-                random_agents = np.array(list(nx.non_neighbors(self.graph, source)))
+                random_agents = list(nx.non_neighbors(self.graph, source)) # Nodes the agent is not connected with
+                # The agent might still meet people they have a negative opinion of at random.
+                random_agents.extend([
+                    ra for ra in source_subgraph.neighbors(source)
+                    if source_subgraph.has_edge(source, ra) and
+                    source_subgraph.edges[source, ra]['weight'] <= 0
+                ])
+                random_agents = np.array(random_agents)
                 candidates_pr = np.zeros(self.nr_agents)
                 candidates_pr[random_agents] = 1 # Uniform distribution
+
+                # Normalize using proportional normalization.
                 normalize_factor = candidates_pr.sum() # Unless it's a small graph, very likely that this will be greater than zero.
                 if normalize_factor > 0: # Normalize 
                     candidates_pr /= normalize_factor
