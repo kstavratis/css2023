@@ -8,6 +8,8 @@ from collections import defaultdict
 
 from typing import Tuple
 
+from .utils.graph_helper_functions import increase_weights_of_edges
+
 # Import SUPERCLASS(ES)
 from .backbone_social_system import BackboneSocialSystem
 
@@ -85,6 +87,7 @@ class HomophilicSocialSystem(BackboneSocialSystem):
             # The current implementation does not handle cases
             # where the number of friends or firends of friends are insufficient.
             # e.g. an agent can have only one friend, but the `sample_size` is two.
+            # This is given low priority, since the most usual case is `sample_size=1`
 
             if match_scheme == 0: # Choose immediate neighbour
                 
@@ -102,11 +105,7 @@ class HomophilicSocialSystem(BackboneSocialSystem):
 
                 candidates_pr = np.zeros_like(candidates_ls) # Initialization
 
-                # TODO DECIDE:
-                # What normalization scheme should be used?
-                # The current implementation considers proportional normalization,
-                # but softmax could also be considered (although, it doesn't make
-                # as much sense for me).
+                # Normalize using proportional normalization.
                 normalize_factor = candidates_ls.sum()
                 if normalize_factor > 0: # Normalize
                     candidates_pr = candidates_ls / normalize_factor
@@ -132,18 +131,15 @@ class HomophilicSocialSystem(BackboneSocialSystem):
                 # other agents (either positive or negative),
                 # but not of the opinions of "enemies"
                 # This is the reason why `friends_csr` was computed.
-                candidates_scores[candidate_ids] = (friends_csr @ graph_array)[[candidate_ids.index(source)], :].todense().flatten()
+                candidates_scores[candidate_ids] = (friends_csr @ graph_array)[[candidate_ids.index(source)], :].todense().ravel()
                 # Retain only the positive scores,
                 # i.e. consider only the overall good friend recommendations. 
                 candidates_scores = np.maximum(candidates_scores, 0)
 
                 # Variable initialization
                 candidates_pr = np.zeros_like(candidates_scores)
-                # TODO DECIDE:
-                # What normalization scheme should be used?
-                # The current implementation considers proportional normalization,
-                # but softmax could also be considered (although, it doesn't make
-                # as much sense for me).
+                
+                # Normalize using proportional normalization.
                 normalize_factor = candidates_scores.sum()
                 if normalize_factor > 0: # Normalize
                     candidates_pr = candidates_scores / normalize_factor
@@ -152,26 +148,87 @@ class HomophilicSocialSystem(BackboneSocialSystem):
             elif match_scheme == 2: # Choose random agent in the graph
 
                 # NOTE: Friend of a friend may also be selected, which is consistent.
-                random_agents = np.array(list(nx.non_neighbors(self.graph, source)))
+                random_agents = list(nx.non_neighbors(self.graph, source)) # Nodes the agent is not connected with
+                # The agent might still meet people they have a negative opinion of at random.
+                random_agents.extend([
+                    ra for ra in source_subgraph.neighbors(source)
+                    if source_subgraph.has_edge(source, ra) and
+                    source_subgraph.edges[source, ra]['weight'] <= 0
+                ])
+                random_agents = np.array(random_agents)
                 candidates_pr = np.zeros(self.nr_agents)
                 candidates_pr[random_agents] = 1 # Uniform distribution
+
+                # Normalize using proportional normalization.
                 normalize_factor = candidates_pr.sum() # Unless it's a small graph, very likely that this will be greater than zero.
                 if normalize_factor > 0: # Normalize 
                     candidates_pr /= normalize_factor
 
-            
-            agent_choice = rng.choice(self.nr_agents, sample_size, p=candidates_pr)
+            # TODO FIX
+            # This command can break in case where there are not enough
+            # options fo the agents to choose from
+            # when `sample_size` is too large
+            # (for very sparse graphs, this can also happen for `sample_size=2`)
+            # One solution would be to call the matching scheme one pairing at a time
+            # i.e. do one matching `sample_size` times, excluding the agents
+            # chosen in the previous round.
+            # This is too expensive to do for the current simulation.
+            # Moreover currently we are focusing on `sample_size=1`.
+            agent_choice = rng.choice(self.nr_agents, sample_size, replace=False, p=candidates_pr)
             output.append(agent_choice)
 
         return np.vstack(output)
     
+    def _interact(self, matchings: npt.NDArray[np.bool_], kf_name: str = 'bc'):
 
-    # TODO FIX
-    # This function seems to not work correctly,
-    # as the "friend of friend" scenario can be executed
-    # in the `_match` function.
-    # I can get:
-    # "ValueError: probabilities do not sum to 1" in the `agent_choice = rng(..., p=candidates_pr)`.
+        previous_opinions = self.opinions.copy()
+        # Have the agents interact as they would
+        # (currently they change their opinion and tolerances).
+        super()._interact(matchings, kf_name)
+
+        # TODO IMPLEMENT
+        # The `threshold` must be either an input/parameter or
+        # associated with the kernel function used.
+        threshold = 0
+
+        link_incredecrements = \
+            self.__compute_link_strength_incredecrements(self.opinions, previous_opinions, matchings)
+        
+        increase_weights_of_edges(self.graph, link_incredecrements)
+
+
+    @staticmethod
+    def __compute_link_strength_incredecrements(
+        current_opinions,
+        previous_opinions,
+        matchings,
+        threshold: float = 0
+    ) -> npt.NDArray[np.int_]:
+
+        was_impacted = np.absolute(current_opinions - previous_opinions) > threshold
+
+        was_impacted_indices = np.where(was_impacted)[0]
+        increment_links = np.vstack((
+            np.repeat(was_impacted_indices, matchings.shape[1]),
+            matchings[was_impacted_indices].ravel(),
+            np.ones(was_impacted_indices.size * matchings.shape[1])
+        )).T.astype(np.int_)
+
+
+
+        not_impacted = ~was_impacted
+
+        not_impacted_indices = np.where(not_impacted)[0]
+        decrement_links = np.vstack((
+            np.repeat(not_impacted_indices, matchings.shape[1]),
+            matchings[not_impacted_indices].ravel(),
+            -np.ones(not_impacted_indices.size * matchings.shape[1])
+        )).T.astype(np.int_)
+
+        return np.vstack((increment_links, decrement_links))
+
+
+    
     @staticmethod
     def __adjust_matching_pdfs(
         graph: nx.DiGraph,
@@ -257,22 +314,10 @@ class HomophilicSocialSystem(BackboneSocialSystem):
         # Think up of a link strength initialization scheme.
         # AD-HOC uniformly create link strengths.
 
-        successors = output_graph.succ
-
         rng: np.random.Generator = np.random.default_rng()
+        # Uniformly distributed link strengths.
         rand_weights = rng.integers(link_strength_lb_init, link_strength_ub_init, len(output_graph.edges), endpoint=True)
 
         output_graph.add_weighted_edges_from(list((*edge, rand_weights[i]) for i, edge in enumerate(output_graph.edges)))
-
-        # for source, destinations in successors.items():
-
-        #     nr_neighbours = len(destinations)
-        #     s_ones = source * np.ones(nr_neighbours) # Abusing the fact that nodes have integer IDs.
-        #     d_arr = np.array(destinations)
-        #     # Uniformly distributed.
-        #     rand_weights = rng.integers(link_strength_lb_init, link_strength_ub_init, nr_neighbours, endpoint=True)
-        #     links = np.vstack([s_ones, d_arr, rand_weights]).T # Make triplets.
-        #     output_graph.add_weighted_edges_from(links)
-
             
         return output_graph
