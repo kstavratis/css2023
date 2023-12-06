@@ -106,7 +106,7 @@ class BackboneSocialSystem:
 
             # Variable declaration and initialization
             agent_choice = -np.ones(sample_size) # `-1` represents "no choice".
-            # TODO: Handle case where 0 < #neighbours < sample_size
+            # TODO FIX: Handle case where 0 < #neighbours < sample_size
             # Priority: Low, as we will mostly be dealing with the case of
             # `sample_size` = 1.
 
@@ -142,8 +142,13 @@ class BackboneSocialSystem:
         rows = np.repeat(
             np.arange(matchings.shape[0])[:, None],
             repeats=matchings.shape[1]
-        ).flatten()
+        ).ravel()
         cols = matchings.flatten()
+        # PROGRAMMING NOTE
+        # It is important here to return a copy
+        # (which `flatten` does, but `ravel` doesn't)!
+        # We do not wish to alter the shape of the input `matchings`
+        # (which could be the attribute `self._mathings`).
 
         # Compute kernel values among all agents.
         kf_temp = kernel_functions_dict[kf_name](self.opinions, self.tolerances)

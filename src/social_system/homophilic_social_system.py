@@ -87,6 +87,7 @@ class HomophilicSocialSystem(BackboneSocialSystem):
             # The current implementation does not handle cases
             # where the number of friends or firends of friends are insufficient.
             # e.g. an agent can have only one friend, but the `sample_size` is two.
+            # This is given low priority, since the most usual case is `sample_size=1`
 
             if match_scheme == 0: # Choose immediate neighbour
                 
@@ -104,11 +105,7 @@ class HomophilicSocialSystem(BackboneSocialSystem):
 
                 candidates_pr = np.zeros_like(candidates_ls) # Initialization
 
-                # TODO DECIDE:
-                # What normalization scheme should be used?
-                # The current implementation considers proportional normalization,
-                # but softmax could also be considered (although, it doesn't make
-                # as much sense for me).
+                # Normalize using proportional normalization.
                 normalize_factor = candidates_ls.sum()
                 if normalize_factor > 0: # Normalize
                     candidates_pr = candidates_ls / normalize_factor
@@ -134,18 +131,15 @@ class HomophilicSocialSystem(BackboneSocialSystem):
                 # other agents (either positive or negative),
                 # but not of the opinions of "enemies"
                 # This is the reason why `friends_csr` was computed.
-                candidates_scores[candidate_ids] = (friends_csr @ graph_array)[[candidate_ids.index(source)], :].todense().flatten()
+                candidates_scores[candidate_ids] = (friends_csr @ graph_array)[[candidate_ids.index(source)], :].todense().ravel()
                 # Retain only the positive scores,
                 # i.e. consider only the overall good friend recommendations. 
                 candidates_scores = np.maximum(candidates_scores, 0)
 
                 # Variable initialization
                 candidates_pr = np.zeros_like(candidates_scores)
-                # TODO DECIDE:
-                # What normalization scheme should be used?
-                # The current implementation considers proportional normalization,
-                # but softmax could also be considered (although, it doesn't make
-                # as much sense for me).
+                
+                # Normalize using proportional normalization.
                 normalize_factor = candidates_scores.sum()
                 if normalize_factor > 0: # Normalize
                     candidates_pr = candidates_scores / normalize_factor
@@ -165,7 +159,7 @@ class HomophilicSocialSystem(BackboneSocialSystem):
             # This command can break in case where there are not enough
             # options fo the agents to choose from
             # when `sample_size` is too large
-            # (for very sparse graphs, that can also happen for `sample_size=2`)
+            # (for very sparse graphs, this can also happen for `sample_size=2`)
             # One solution would be to call the matching scheme one pairing at a time
             # i.e. do one matching `sample_size` times, excluding the agents
             # chosen in the previous round.
@@ -182,10 +176,6 @@ class HomophilicSocialSystem(BackboneSocialSystem):
         # Have the agents interact as they would
         # (currently they change their opinion and tolerances).
         super()._interact(matchings, kf_name)
-
-        # TODO FIX
-        # The following code segment is very un-Pythonic.
-        # Find a way to make it more readable.
 
         # TODO IMPLEMENT
         # The `threshold` must be either an input/parameter or
