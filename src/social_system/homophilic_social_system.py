@@ -253,44 +253,71 @@ class HomophilicSocialSystem(BackboneSocialSystem):
 
         if not has_friend:
             return 0, 0, 1
-
-
-        # CASE 2: There are no positive suggestions from friends.
-        # Make the probability of choosing friend of a friend 0%
-        # and adjust the remaining probabilities.
-        # Analogy;
-        # Q: What happens if their social circle does not suggest any other agent
-        # A: All the agents belonging in the clique can only either meet their friends or meet new agents.
         
-        graph_array: csr_array = nx.to_scipy_sparse_array(graph)
-        # Default values return a CSR matrix, with values being 'weight'.
-
-        friends_array: csr_array = graph_array.maximum(0)
-        #friend_array.eliminate_zeros() # We have to see if this takes more time than needed.
-        friend_suggestions = (friends_array @ graph_array)[[list(graph.nodes).index(source)], :]
-        exists_friend_suggestion = friend_suggestions.maximum(0).count_nonzero() > 0
-
-        # TODO DECIDE:
-        # How do we distribute the arising void in the PDF,
-        # since now `pr_friend_of_friend` must be equal to zero?
-        # With the current implementation, all of the probability
-        # is transferred to the `pr_friend`, since it could be
-        # assumed that the person is shy, thus not going out of their
-        # way to converse with random people in the street.
-        if not exists_friend_suggestion:
-            return pr_friend + pr_friend_of_friend, 0, pr_random_agent
-
-
-        # CASE 3: The agent is fully networked.
+        
+        # CASE 2: The agent is fully networked.
         # The agent may be connected with all other agents
         # of the network with a direct link.
-        # In this case, the "random_agent" option should be disallowed.
-        if next(nx.non_neighbors(graph, source), None) is None:
-            return pr_friend + pr_random_agent/2 , pr_friend_of_friend + pr_random_agent/2, 0
+        # In this case, the "friend of a friend" and "random_agent" options should be disallowed.
+        # We assume that the agent's friends do not influence their opinion of
+        # someone they've already met
+        # (thus increasing/decreasing the corresponding probability).
+        is_fully_networked = next(nx.non_neighbors(graph, source), None) is None
+        
+
+        if is_fully_networked:
+            # The agent has already formed an opinion about *all* agents
+            # He/She will therefore choose to interact with one of his friends in the end,
+            # as there are no strangers.
+
+            # We assume that the agent's friends do not influence their opinion of
+            # someone they've already met
+            # (thus increasing/decreasing the corresponding probability).
+            pr_friend += pr_friend_of_friend + pr_random_agent
+            pr_friend_of_friend, pr_random_agent = 0, 0
+        
+        else:
+
+            # CASE 3: There are no positive suggestions from friends.
+            # Make the probability of choosing friend of a friend 0%
+            # and adjust the remaining probabilities.
+            # Analogy;
+            # Q: What happens if their social circle does not suggest any other agent
+            # A: All the agents belonging in the clique can only either meet their friends or meet new agents.
+            
+            graph_array: csr_array = nx.to_scipy_sparse_array(graph)
+            # Default values return a CSR matrix, with values being 'weight'.
+
+            friends_array: csr_array = graph_array.maximum(0)
+            #friend_array.eliminate_zeros() # We have to see if this takes more time than needed.
+            friend_suggestions = (friends_array @ graph_array)[[list(graph.nodes).index(source)], :]
+            exists_friend_suggestion = friend_suggestions.maximum(0).count_nonzero() > 0
+
+            if not exists_friend_suggestion:
+                # The agent has friends and strangers, but no recommendations.
+
+                # Split the probability of meeting *a friend of a friend* by half
+                # and distribute it equally between the other two options.
+                pr_friend += pr_friend_of_friend/2
+                pr_random_agent += pr_friend_of_friend/2
+                pr_friend_of_friend = 0
 
 
+            # else: # has_friend and not is_fully_networked and exists_friend_suggestion
+            #     pass
+                # All three options:
+                # - pick friend
+                # - pick friend of a friend
+                # - pick random agent
+                # are available to the agent.
+                # Do not(!) change the probabilities.
 
-        # CASE 4: None of the above cases.
+
+        # CASE 4: None of the above cases
+        # i.e.
+        # 1. Has at least one friend
+        # 2. Has at least one recommendation
+        # 3. Has at least one stranger
         # Proceed with the provided probabilities.
         return pr_friend, pr_friend_of_friend, pr_random_agent
     
