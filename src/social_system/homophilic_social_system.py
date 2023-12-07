@@ -15,16 +15,67 @@ from .backbone_social_system import BackboneSocialSystem
 
 # Import CONSTANT(S)
 from . import link_strength_lb_init, link_strength_ub_init
-from . import pr_friend, pr_friend_of_friend, pr_random_agent
 
 class HomophilicSocialSystem(BackboneSocialSystem):
+
+    def __init__(
+        self,
+        pr_friend_default: float,
+        pr_friend_of_friend_default: float,
+        **kwargs
+    ):
+        # Initialize the parent `BackboneSocialSystem`
+        super().__init__(**kwargs)
+
+        # ==================== Dynamic sanity checks of input START ====================
+        if not(0 <= pr_friend_default <= 1):
+            raise ValueError(
+                'Argument `pr_friend_default` expresses part of a PDF.'\
+                    'Consequently, Its values are bounded in the margin [0, 1].\n'\
+                        f'Instead, a value of {pr_friend_default} was provided.'
+            )
+        if not(0 <= pr_friend_of_friend_default <= 1):
+            raise ValueError(
+                'Argument `pr_friend_of_friend_default` expresses part of a PDF.'\
+                    'Consequently, Its values are bounded in the margin [0, 1].\n'\
+                        f'Instead, a value of {pr_friend_of_friend_default} was provided.'
+            )
+        
+
+        if pr_friend_default + pr_friend_of_friend_default > 1:
+            raise ValueError(
+                'Arguments `pr_friend_default` and `pr_friend_of_friend_default` express parts of a PDF.'\
+                    'Consequently, Their sum is bounded in the margin [0, 1].\n'\
+                        f'Instead, they have a sum of {pr_friend_default + pr_friend_of_friend_default}.'
+            )
+        
+        # ==================== Dynamic sanity checks of input FINISH ====================
+
+
+        # Store probabilities which will be used
+        # as the default values of the probabilities
+        # in the `_match` function.
+        self.pr_friend_default = pr_friend_default
+        self.pr_friend_of_friend_default = pr_friend_of_friend_default
+
+    @property
+    def pr_random_agent_default(self):
+        return 1 - (self.pr_friend_default + self.pr_friend_of_friend_default)
+
 
     def _match(
             self,
             sample_size: int = 1,
-            pr_friend: float = pr_friend,
-            pr_friend_of_friend: float = pr_friend_of_friend,
+            pr_friend: float = None,
+            pr_friend_of_friend: float = None,
     ) -> npt.NDArray[np.bool_]:
+
+        # Automatically filling in default named parameter values.
+        if pr_friend is None:
+            pr_friend = self.pr_friend_default
+        if pr_friend_of_friend is None:
+            pr_friend_of_friend = self.pr_friend_of_friend_default
+
         
         output = []
         rng = np.random.default_rng()
@@ -233,9 +284,9 @@ class HomophilicSocialSystem(BackboneSocialSystem):
     def __adjust_matching_pdfs(
         graph: nx.DiGraph,
         source,
-        pr_friend: float = pr_friend,
-        pr_friend_of_friend: float = pr_friend_of_friend,
-        pr_random_agent: float = pr_random_agent
+        pr_friend: float,
+        pr_friend_of_friend: float,
+        pr_random_agent: float
     ) -> Tuple[float, float, float]:
         
         # Consider four (4) cases.

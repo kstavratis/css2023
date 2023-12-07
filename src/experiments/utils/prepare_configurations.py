@@ -24,8 +24,8 @@ def prepare_experiment_configurations(nr_agents: int = nr_agents) -> List[Dict]:
 
                     'pr_edge_creation': expected_edges_per_agent / nr_agents,
                     'pr_positive': 0.0, # In the current implementation, this parameter is ignored.
-                    'pr_friend': pr_friend,
-                    'pr_friend_of_friend': pr_friend_of_friend
+                    'pr_friend_default': pr_friend,
+                    'pr_friend_of_friend_default': pr_friend_of_friend
                 }
                 kwargs_list.append(kwargs)
 
