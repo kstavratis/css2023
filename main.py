@@ -34,8 +34,26 @@ def main():
         total=nr_configurations)
     )
 
-    for item in test:
-        print(item)
+
+    #save all result in csv files
+    path = './results/'
+    for i, item in enumerate(test):
+        conf = social_systems_kwargs_list[i]
+        n_agent = conf['graph']
+        mu = conf['interaction_intensity']
+        theta = conf['opinion_tolerance']
+        mean_edge_per_agent = conf['pr_edge_creation']*n_agent
+        pr_meeting_friend = conf['pr_friend_default']
+        pr_meeting_friend_of_friend = conf['pr_friend_of_friend_default']
+
+
+        for i in range(nr_experiments):
+            backbone_res = item.backbone_opinions_in_experiment(i)
+            homophilic_res = item.homophilic_opinions_in_experiment(i)
+            config = f'{n_agent}_{mu}_{theta}_{mean_edge_per_agent}'
+            homophily_config = f'{pr_meeting_friend}_{pr_meeting_friend_of_friend}'
+            backbone_res.to_csv(path+'backbone_'+config+f'_{i}.csv', float_format="%.3f")
+            homophilic_res.to_csv(path+'homophilic_'+config+'_'+homophily_config+f'_{i}.csv', float_format="%.3f")
     
 
 if __name__ == '__main__':
