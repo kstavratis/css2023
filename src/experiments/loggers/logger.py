@@ -1,4 +1,5 @@
 from pathlib import Path
+import os
 
 import pandas as pd
 
@@ -55,7 +56,10 @@ def write_social_system_experiments(
 
     # Create path to store the results.
     # In case that the folder does not exist, it is created. 
-    path_to_store = Path(__root_dir / 'results')
+
+    # path_to_store = Path(__root_dir / 'results')  #for computing on personnal laptop
+    path_to_store = Path(os.environ['SCRATCH'] + '/abm_results')    #for computing on euler
+    
     path_to_store.mkdir(exist_ok=True)
     
     for expmt_idx, experiment in  enumerate(comparison_experiment_record.experiments):
