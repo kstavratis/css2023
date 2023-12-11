@@ -11,15 +11,50 @@ from src.social_system.homophilic_social_system import HomophilicSocialSystem
 from ..social_system.utils.graph_helper_functions import reduce_to_graph_with_edges_in_range
 
 @dataclass
-class __ComparisonExperimentRecord:
+class ComparisonExperimentRecord:
+    """
+    A data structure which holds information about experiments
+    conducted comparatively with respect to the social systems'
+    mechanisms.
+
+    Attributes
+    ----------
+    `initial_backbone_social_system`: BackboneSocialSystem
+        The initial `BackboneSocialSystem` configuration shared by all experiments.
+        It may be thought as the "starting point" of all experiments.
+
+    `initial_homophilic_social_system`: HomophilicSocialSystem
+        The initial `HomophilicSocialSystem` configuration shared by all experiments.
+        It may be thought as the "starting point" of all experiments.
+
+    `experiments`: List[Tuple[pd.DataFrame, pd.DataFrame]]
+        Possible evolutions of experiments that `initial_backbone_social_system` and
+        `initial_homophilic_social_system` as their starting points.
+        The difference in evolution (results per time step/iteration) is due to
+        the inherent randmoness of the experiments
+        (e.g. random graph creation, random matching etc.) 
+
+    
+    Methods
+    -------
+
+    `experiment(id: int) -> Tuple[pd.DataFrame, pd.DataFrame]`
+    Returns a pair of experiment evolutions with the same starting configurations.
+
+    `backbone_opinions_in_experiment(id: int) -> pd.DataFrame`
+    Returns the evolution of the `id`-th `BackboneSocialSystem` experiment
+
+    `homophilic_opinions_in_experiment(id: int) -> pd.DataFrame`
+    Returns the evolution of the `id`-th `HomophilicSocialSystem` experiment 
+    """
 
     initial_backbone_social_system: BackboneSocialSystem
     initial_homophilic_social_system: HomophilicSocialSystem
-    experiments: Tuple[BackboneSocialSystem, HomophilicSocialSystem, List[Tuple[pd.DataFrame, pd.DataFrame]]]
+    experiments: List[Tuple[pd.DataFrame, pd.DataFrame]]
 
     # Defining convenience functions for more readability.
 
-    def experiment(self, id: int):
+    def experiment(self, id: int) -> Tuple[pd.DataFrame, pd.DataFrame]:
         return self.experiments[id]
     
     def backbone_opinions_in_experiment(self, id: int) -> pd.DataFrame:
@@ -34,7 +69,7 @@ def run_comparison_experiments(
         nr_experiments: int,
         time_steps: int,
         system_kwargs: dict
-    ) -> __ComparisonExperimentRecord:
+    ) -> ComparisonExperimentRecord:
     """
     Conducts experiments with `BackboneSocialSystem`s and `HomophilicSocialSystem`s
     which start from the same initial configuration
@@ -116,7 +151,7 @@ def run_comparison_experiments(
         homophilic_exp_df = run_experiment(deepcopy(homophilic_system), time_steps)
         output.append((base_exp_df, homophilic_exp_df))
 
-    return __ComparisonExperimentRecord(baseline_system, homophilic_system, output)
+    return ComparisonExperimentRecord(baseline_system, homophilic_system, output)
 
     
 
