@@ -68,7 +68,7 @@ def write_social_system_experiments(
         backbone_data, homophilic_data = experiment
 
 
-        shared_config = f'N{n_agents}_μ{mu}_θ{theta}_E{mean_edge_per_agent}'
+        shared_config = f'N{n_agents}_μ{mu:.3g}_θ{theta:.3g}_E{mean_edge_per_agent}'
         homophily_config = f'pf{pr_meeting_friend}_pff{pr_meeting_friend_of_friend}'
 
         backbone_subpath = f'{name_prefix}' + 'backbone_' + shared_config + f'_{expmt_idx}.csv'
