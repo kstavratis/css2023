@@ -16,7 +16,7 @@ def prepare_experiment_configurations(nr_agents: int = nr_agents) -> List[Dict]:
     # See `help_constant_structures.py` 
     # for persuasiveness_params in (Guillible, Adamant, Tolerant, Impressionable):
     for expected_edges_per_agent in [3]:#, 10, 20):
-        for pr_friend, pr_friend_of_friend in ((0.8, 0.1), (0.9, 0.09), (0.95, 0.04)):
+        for pr_friend, pr_friend_of_friend in [(0.8, 0.1), (0.9, 0.09), (0.95, 0.04)]:
             for mu in [0.1+0.2*i for i in range(5)]:
                 for theta in [0.1+0.2*i for i in range(5)]:
                     kwargs = {

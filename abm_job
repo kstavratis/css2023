@@ -7,7 +7,6 @@
 #SBATCH --job-name=abm
 #SBATCH --output=abm.out
 #SBATCH --error=abm.err
-#SBATCH --gpus=1
 
 source euler_scripts/setup.sh
 
