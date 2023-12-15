@@ -15,9 +15,9 @@ def main():
 
     # # Single threaded run.
     # for kwargs in social_systems_kwargs_list:
-    #     comparison_expms = run_comparison_experiments(2, time_steps, kwargs)
-    #     write_social_system_experiment(comparison_expms.experiment(0), kwargs)
+    #     comparison_expms = run_comparison_experiments(nr_experiments, time_steps, kwargs)
 
+    # print(comparison_expms)
 
     # Although multiple different experiments are run in parallel,
     # the results are not aggregated/collected/stored somewhere

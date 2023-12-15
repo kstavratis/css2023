@@ -1,9 +1,12 @@
+from pathlib import Path; import os
 from copy import deepcopy
 from typing import List, Tuple
 from dataclasses import dataclass
 
 import numpy as np
 import pandas as pd
+
+import networkx as nx
 
 from src.social_system.backbone_social_system import BackboneSocialSystem
 from src.social_system.homophilic_social_system import HomophilicSocialSystem
@@ -63,6 +66,7 @@ class ComparisonExperimentRecord:
     def homophilic_opinions_in_experiment(self, id: int) -> pd.DataFrame:
         return self.experiments[id][1]
 
+from .loggers.logger import _root_dir
 
 
 def run_comparison_experiments(
@@ -144,29 +148,86 @@ def run_comparison_experiments(
     # Two social systems creations FINISH
 
     output = []
+
+    # ========== Store the initial graphs in files START ==========
+    n_agents = system_kwargs['graph']
+    mu = system_kwargs['interaction_intensity']
+    theta = system_kwargs['opinion_tolerance']
+    mean_edge_per_agent = system_kwargs['pr_edge_creation']*n_agents
+    pr_meeting_friend = system_kwargs['pr_friend_default']
+    pr_meeting_friend_of_friend = system_kwargs['pr_friend_of_friend_default']
+    
+    shared_config = f'N{n_agents}_μ{mu:.3g}_θ{theta:.3g}_E{mean_edge_per_agent}'
+    homophily_config = f'pf{pr_meeting_friend}_pff{pr_meeting_friend_of_friend}'
+
+    baseline_subpath = Path('backbone_' + shared_config + '_' + homophily_config + '_init_graph.gml')
+    homophilic_subpath = Path('homophilic_' + shared_config + '_' + homophily_config + '_init_graph.gml')
+
+    # file_storage_path = _root_dir / 'results' # Run locally
+    file_storage_path = Path(os.environ['SCRATCH'] + '/abm_results')# Run on Euler
+    nx.write_gml(baseline_system.graph, file_storage_path / baseline_subpath, str)
+    nx.write_gml(homophilic_system.graph, file_storage_path / homophilic_subpath, str)
+    # TODO IMPLEMENT:
+    # Apparently, `np.int` types, which is the type of edges' `weight`
+    # are not considered instances of `int`. i.e. `isinstance(np.int) == int` is false.
+    # Therefore they are rejected by the internal parser of `gml.py`.
+    # Consequently, the weights should be converted to int again when read.
+    
+    # ========== Store the initial graphs in files FINISH ==========
+
     # Run different experiments with identical parameterizations.
     # Differences will be a consequence of randomness!
-    for _ in range(nr_experiments):
-        base_exp_df = run_experiment(deepcopy(baseline_system), time_steps)
-        homophilic_exp_df = run_experiment(deepcopy(homophilic_system), time_steps)
+    for i in range(nr_experiments):
+        base_exp_df = run_experiment(deepcopy(baseline_system), time_steps, i, system_kwargs)
+        homophilic_exp_df = run_experiment(deepcopy(homophilic_system), time_steps, i, system_kwargs)
         output.append((base_exp_df, homophilic_exp_df))
 
     return ComparisonExperimentRecord(baseline_system, homophilic_system, output)
 
     
 
-def run_experiment(social_system: BackboneSocialSystem, time_steps: int) -> pd.DataFrame:
+def run_experiment(
+        social_system: BackboneSocialSystem, time_steps: int,
+        experiment_id: int = None, social_system_kwargs: dict = None
+    ) -> pd.DataFrame:
     # Initialize log data structures.
     opinions_list = [social_system.opinions.copy(),]
-    polarization_degrees_list = [social_system.polarization_degree(),]
 
     # Conduct experiment START
     for _ in range(time_steps):
         social_system.step()
         # Log information
         opinions_list.append(social_system.opinions.copy())
-        polarization_degrees_list.append(social_system.polarization_degree())
     # Conduct experiment FINISH
+        
+    # ========== Store the final graphs in files START ==========
+    if experiment_id is not None:
+        n_agents = social_system_kwargs['graph']
+        mu = social_system_kwargs['interaction_intensity']
+        theta = social_system_kwargs['opinion_tolerance']
+        mean_edge_per_agent = social_system_kwargs['pr_edge_creation']*n_agents
+        pr_meeting_friend = social_system_kwargs['pr_friend_default']
+        pr_meeting_friend_of_friend = social_system_kwargs['pr_friend_of_friend_default']
+        
+        basic_config = f'N{n_agents}_μ{mu:.3g}_θ{theta:.3g}_E{mean_edge_per_agent}'
+        additional_config = f'pf{pr_meeting_friend}_pff{pr_meeting_friend_of_friend}'
+
+        social_system_pathname = Path(
+            f'{"homophilic" if type(social_system) == HomophilicSocialSystem else "backbone"}' +\
+                '_' + basic_config + additional_config + '_final_graph_' + f'{experiment_id}' + '.gml'
+        )
+
+        # file_storage_path = _root_dir / 'results' # Run locally
+        file_storage_path = Path(os.environ['SCRATCH'] + '/abm_results')# Run on Euler
+        nx.write_gml(social_system.graph, file_storage_path / social_system_pathname, str)
+        # TODO IMPLEMENT:
+        # Apparently, `np.int` types, which is the type of edges' `weight`
+        # are not considered instances of `int`. i.e. `isinstance(np.int) == int` is false.
+        # Therefore they are rejected by the internal parser of `gml.py`.
+        # Consequently, the weights should be converted to int again when read.
+    # ========== Store the final graphs in files FINISH ==========
+
+    
 
     # +1 to account for the initial configuration which is also recorded.
     opinions_array = np.stack(opinions_list, 0).reshape(time_steps+1, social_system.nr_agents)

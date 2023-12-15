@@ -14,7 +14,7 @@ __cfp = Path(__file__).resolve()
 # Q: Why this weird syntax?
 # A: This syntax raise an exception in case that the RHS does not contain
 #   only *one* element
-[__root_dir] = [parent_path.parent for parent_path in __cfp.parents if parent_path.name == 'src']
+[_root_dir] = [parent_path.parent for parent_path in __cfp.parents if parent_path.name == 'src']
 
 # ==================== Initialize path variables FINISH ====================
 
@@ -57,8 +57,8 @@ def write_social_system_experiments(
     # Create path to store the results.
     # In case that the folder does not exist, it is created. 
 
-    # path_to_store = Path(__root_dir / 'results')  #for computing on personnal laptop
-    path_to_store = Path(os.environ['SCRATCH'] + '/abm_results')    #for computing on euler
+    # path_to_store = Path(_root_dir / 'results')  # for computing on personnal laptop
+    path_to_store = Path(os.environ['SCRATCH'] + '/abm_results')    # for computing on euler
     
     path_to_store.mkdir(exist_ok=True)
     
@@ -71,7 +71,7 @@ def write_social_system_experiments(
         shared_config = f'N{n_agents}_μ{mu:.3g}_θ{theta:.3g}_E{mean_edge_per_agent}'
         homophily_config = f'pf{pr_meeting_friend}_pff{pr_meeting_friend_of_friend}'
 
-        backbone_subpath = f'{name_prefix}' + 'backbone_' + shared_config + f'_{expmt_idx}.csv'
+        backbone_subpath = f'{name_prefix}' + 'backbone_' + shared_config + '_' + homophily_config + f'_{expmt_idx}.csv'
         homophilic_subpath = f'{name_prefix}' + 'homophilic_' + shared_config + '_' + homophily_config + f'_{expmt_idx}.csv'
 
         # Write the files.
