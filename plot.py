@@ -7,12 +7,12 @@ folder_path = "./results_euler/"
 
 type = "homophilic"
 # type = "backbone"
-edges = 13
+edges = 20
 pf = 0.8
 pff = 0.1
-mu = 0.5
-theta = 0.5
-exp = 3
+mu = 0.9
+theta = 0.1
+exp = 1
 
 
 file = type+"_N100_μ" + str(mu) + "_θ" + str(theta) + "_E" + str(edges)
@@ -20,11 +20,11 @@ if edges == 7:
     file = file + ".000000000000001"
 if edges == 13:
     file = file + ".0"
+if edges == 20:
+    file = file + ".0"
 if type == "homophilic":
     file = file + "_pf" + str(pf) + "_pff" + str(pff)
 file = file + "_" + str(exp)
-
-print(file)
 
 data = pd.read_csv(folder_path+file+".csv").iloc[:,1:]
 
