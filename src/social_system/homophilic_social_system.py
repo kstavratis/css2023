@@ -243,7 +243,7 @@ class HomophilicSocialSystem(BackboneSocialSystem):
         threshold = 0
 
         link_incredecrements = \
-            self.__compute_link_strength_incredecrements(self.opinions, previous_opinions, matchings)
+            self.__compute_link_strength_incredecrements(self.opinions, previous_opinions, matchings, threshold)
         
         increase_weights_of_edges(self.graph, link_incredecrements)
 
